@@ -3155,6 +3155,7 @@ set_control_mode()
 		control_mode.flag_control_climb_rate_enabled = false;
 		control_mode.flag_control_position_enabled = false;
 		control_mode.flag_control_velocity_enabled = false;
+		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		break;
 
@@ -3167,6 +3168,7 @@ set_control_mode()
 		control_mode.flag_control_climb_rate_enabled = false;
 		control_mode.flag_control_position_enabled = false;
 		control_mode.flag_control_velocity_enabled = false;
+		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		/* override is not ok in stabilized mode */
 		control_mode.flag_external_manual_override_ok = false;
@@ -3181,6 +3183,7 @@ set_control_mode()
 		control_mode.flag_control_climb_rate_enabled = false;
 		control_mode.flag_control_position_enabled = false;
 		control_mode.flag_control_velocity_enabled = false;
+		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		break;
 
@@ -3193,6 +3196,7 @@ set_control_mode()
 		control_mode.flag_control_climb_rate_enabled = true;
 		control_mode.flag_control_position_enabled = false;
 		control_mode.flag_control_velocity_enabled = false;
+		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		break;
 
@@ -3205,6 +3209,7 @@ set_control_mode()
 		control_mode.flag_control_climb_rate_enabled = true;
 		control_mode.flag_control_position_enabled = !status.in_transition_mode;
 		control_mode.flag_control_velocity_enabled = !status.in_transition_mode;
+		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		break;
 
@@ -3228,6 +3233,7 @@ set_control_mode()
 		control_mode.flag_control_climb_rate_enabled = true;
 		control_mode.flag_control_position_enabled = !status.in_transition_mode;
 		control_mode.flag_control_velocity_enabled = !status.in_transition_mode;
+		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		break;
 
@@ -3240,6 +3246,7 @@ set_control_mode()
 		control_mode.flag_control_climb_rate_enabled = true;
 		control_mode.flag_control_position_enabled = false;
 		control_mode.flag_control_velocity_enabled = false;
+		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		break;
 
@@ -3252,6 +3259,7 @@ set_control_mode()
 		control_mode.flag_control_climb_rate_enabled = false;
 		control_mode.flag_control_position_enabled = false;
 		control_mode.flag_control_velocity_enabled = false;
+		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_termination_enabled = false;
 		break;
 
@@ -3263,6 +3271,7 @@ set_control_mode()
 		control_mode.flag_control_attitude_enabled = true;
 		control_mode.flag_control_position_enabled = false;
 		control_mode.flag_control_velocity_enabled = false;
+		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_altitude_enabled = false;
 		control_mode.flag_control_climb_rate_enabled = true;
 		control_mode.flag_control_termination_enabled = false;
@@ -3276,6 +3285,7 @@ set_control_mode()
 		control_mode.flag_control_attitude_enabled = false;
 		control_mode.flag_control_position_enabled = false;
 		control_mode.flag_control_velocity_enabled = false;
+		control_mode.flag_control_acceleration_enabled = false;
 		control_mode.flag_control_altitude_enabled = false;
 		control_mode.flag_control_climb_rate_enabled = false;
 		control_mode.flag_control_termination_enabled = true;
@@ -3300,6 +3310,9 @@ set_control_mode()
 			!offboard_control_mode.ignore_position ||
 			!offboard_control_mode.ignore_velocity ||
 			!offboard_control_mode.ignore_acceleration_force;
+
+		control_mode.flag_control_acceleration_enabled = (!offboard_control_mode.ignore_acceleration_force && 
+			!status.in_transition_mode);
 
 		control_mode.flag_control_velocity_enabled = (!offboard_control_mode.ignore_velocity ||
 			!offboard_control_mode.ignore_position) && !status.in_transition_mode;
