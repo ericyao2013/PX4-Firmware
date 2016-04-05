@@ -38,3 +38,6 @@
 [submodule "src/drivers/gps/devices"]
 	path = src/drivers/gps/devices
 	url = https://github.com/PX4/GpsDrivers.git
+[submodule "src/modules/rtps/schema"]
+	path = src/modules/rtps/schema
+	url = git@github.com:3drobotics/redrider-schema.git

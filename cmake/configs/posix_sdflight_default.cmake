@@ -23,6 +23,7 @@ set(config_module_list
 	systemcmds/topic_listener
 
 	modules/mavlink
+	modules/rtps
 
 	modules/attitude_estimator_ekf
 	modules/ekf_att_pos_estimator

@@ -262,7 +262,7 @@ function(px4_add_module)
 	px4_parse_function_args(
 		NAME px4_add_module
 		ONE_VALUE MODULE MAIN STACK STACK_MAIN STACK_MAX PRIORITY
-		MULTI_VALUE COMPILE_FLAGS LINK_FLAGS SRCS INCLUDES DEPENDS
+		MULTI_VALUE COMPILE_FLAGS LINK_FLAGS SRCS INCLUDES DEPENDS LIBRARIES
 		REQUIRED MODULE
 		ARGN ${ARGN})
 
@@ -311,6 +311,10 @@ function(px4_add_module)
 
 	if(DEPENDS)
 		add_dependencies(${MODULE} ${DEPENDS})
+	endif()
+
+	if(LIBRARIES)
+		target_link_libraries(${MODULE} ${LIBRARIES})
 	endif()
 
 	# join list variables to get ready to send to compiler
