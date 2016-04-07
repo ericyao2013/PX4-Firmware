@@ -333,7 +333,7 @@ void Ekf2Replay::setEstimatorInput(uint8_t *data, uint8_t type)
 
 		uint8_t *dest_ptr = (uint8_t *)&replay_part1.time_ref;
 		parseMessage(data, dest_ptr, type);
-		_sensors.timestamp = replay_part1.time_ref;
+		_sensors.gyro_timestamp[0] = replay_part1.time_ref;
 		_sensors.gyro_integral_dt[0] = replay_part1.gyro_integral_dt;
 		_sensors.accelerometer_integral_dt[0] = replay_part1.accelerometer_integral_dt;
 		_sensors.magnetometer_timestamp[0] = replay_part1.magnetometer_timestamp;
