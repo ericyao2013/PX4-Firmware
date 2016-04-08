@@ -94,5 +94,5 @@ set(config_df_driver_list
 	mpu9250
 	bmp280
 	hmc5883
-	isl29501
+	isl
 	)
