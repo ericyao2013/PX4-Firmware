@@ -416,8 +416,8 @@ void task_main(int argc, char *argv[])
 			const uint16_t reverse_mask = 0;
 			// TODO FIXME: these should probably be params
 			const uint16_t disarmed_pwm[4] = {900, 900, 900, 900};
-			const uint16_t min_pwm[4] = {1230, 1230, 1230, 1230};
-			const uint16_t max_pwm[4] = {1900, 1900, 1900, 1900};
+			const uint16_t min_pwm[4] = {1075, 1075, 1075, 1075};
+			const uint16_t max_pwm[4] = {1850, 1850, 1850, 1850};
 			uint16_t pwm[4];
 
 			// TODO FIXME: pre-armed seems broken
