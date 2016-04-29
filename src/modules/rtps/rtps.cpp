@@ -49,6 +49,8 @@
 #include <uORB/uORB.h>
 #include <uORB/topics/sensor_gyro.h>
 #include <uORB/topics/optical_flow.h>
+#include <uORB/topics/input_rc.h>
+#include <drivers/drv_rc_input.h>
 #include <redrider.capnp.h>
 
 #include <commkit/node.h>
@@ -101,6 +103,7 @@ struct ORB_ToRTPS: ORB_ToRTPS_Base {
 struct ORB_FromRTPS_Base {
   commkit::SubscriberPtr subscriber;
   const orb_metadata* orb_id;
+  orb_advert_t _orb_pub;
   
   virtual ~ORB_FromRTPS_Base() {}
 };
@@ -125,6 +128,7 @@ struct ORB_FromRTPS: ORB_FromRTPS_Base {
     }
     
     orb_id = orb;
+    _orb_pub = nullptr;
   }
   
   virtual void on_rtps(typename CapnType::Reader) {}
@@ -135,6 +139,44 @@ struct ORB_FromRTPS: ORB_FromRTPS_Base {
       auto capn = payload.toReader<CapnType>();
       on_rtps(capn);
     }
+  }
+  
+  void publish_orb(orb_type& data) {
+    if (_orb_pub == nullptr) {
+      _orb_pub = orb_advertise(orb_id, &data);
+    } else {
+      orb_publish(orb_id, _orb_pub, &data);
+    }
+  } 
+};
+
+struct RcChannels_FromRTPS: ORB_FromRTPS<redrider::RcChannels, input_rc_s> {
+  RcChannels_FromRTPS(commkit::Node& node): ORB_FromRTPS(node, "RcChannels", false, ORB_ID(input_rc)) {}
+    
+  void on_rtps(redrider::RcChannels::Reader reader) {
+    struct input_rc_s rc = {};
+    rc.timestamp_publication = hrt_absolute_time();
+    rc.timestamp_last_signal = rc.timestamp_publication;
+    rc.channel_count = 8;
+    rc.rc_failsafe = false;
+    rc.rc_lost = false;
+    rc.rc_lost_frame_count = 0;
+    rc.rc_total_frame_count = 1;
+    rc.rc_ppm_frame_length = 0;
+    rc.input_source = input_rc_s::RC_INPUT_SOURCE_MAVLINK;
+    rc.rssi = RC_INPUT_RSSI_MAX;
+    
+    /* channels */
+    rc.values[0] = reader.getCh1();
+    rc.values[1] = reader.getCh2();
+    rc.values[2] = reader.getCh3();
+    rc.values[3] = reader.getCh4();
+    rc.values[4] = reader.getCh5();
+    rc.values[5] = reader.getCh6();
+    rc.values[6] = reader.getCh7();
+    rc.values[7] = reader.getCh8();
+    
+    publish_orb(rc);
   }
 };
 
@@ -174,6 +216,7 @@ static int thread_main() {
   
   std::unique_ptr<ORB_FromRTPS_Base> from_rtps[] = {
     std::unique_ptr<ORB_FromRTPS_Base>(new OpticalFlow_FromRTPS(node)),
+    std::unique_ptr<ORB_FromRTPS_Base>(new RcChannels_FromRTPS(node)),
   };
   
   const size_t to_rtps_count = sizeof(to_rtps) / sizeof(to_rtps[0]);
