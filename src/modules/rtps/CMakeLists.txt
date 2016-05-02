@@ -31,7 +31,19 @@
 #
 ############################################################################
 
-set(COMMKIT_DIST $ENV{COMMKIT_DIST})
+find_library(LIBCOMMKIT commkit NO_CMAKE_FIND_ROOT_PATH)
+find_path(COMMKIT_INC commkit/commkit.h NO_CMAKE_FIND_ROOT_PATH)
+find_library(LIBCAPNP capnp NO_CMAKE_FIND_ROOT_PATH)
+
+if (NOT LIBCOMMKIT)
+	message(FATAL_ERROR "Commkit not found. Set the CMAKE_PREFIX_PATH environment variable to point to it.")
+endif()
+
+get_filename_component(LIBDIR ${LIBCOMMKIT} DIRECTORY)
+
+if(NOT APPLE)
+	set(COMMKIT_RPATH "-Wl,-rpath-link,${LIBDIR}")
+endif()
 
 include("./schema/schema.cmake")
 
@@ -41,7 +53,7 @@ px4_add_module(
 	STACK_MAIN 1200
 	COMPILE_FLAGS
 		${MODULE_CFLAGS}
-		-I ${COMMKIT_DIST}/include
+		-I ${COMMKIT_INC}
 		-I ${SCHEMA_INCLUDE}
 	SRCS
 		rtps.cpp
@@ -49,8 +61,9 @@ px4_add_module(
 	DEPENDS
 		platforms__common
 	LIBRARIES
-		capnp
-		${COMMKIT_DIST}/lib/libcommkit.dylib
+		${LIBCOMMKIT}
+		${LIBCAPNP}
+		${COMMKIT_RPATH}
 	)
 
 # vim: set noet ft=cmake fenc=utf-8 ff=unix :
