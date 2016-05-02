@@ -49,6 +49,7 @@
 #include <uORB/uORB.h>
 #include <uORB/topics/sensor_gyro.h>
 #include <uORB/topics/optical_flow.h>
+#include <lib/conversion/rotation.h>
 #include <uORB/topics/input_rc.h>
 #include <drivers/drv_rc_input.h>
 #include <redrider.capnp.h>
@@ -184,7 +185,33 @@ struct OpticalFlow_FromRTPS: ORB_FromRTPS<redrider::OpticalFlow, optical_flow_s>
   OpticalFlow_FromRTPS(commkit::Node& node): ORB_FromRTPS(node, "OpticalFlow", false, ORB_ID(optical_flow)) {}
   
   void on_rtps(redrider::OpticalFlow::Reader reader) {
-    printf("optflow: %f\n", (double) reader.getFlow().getX());
+      enum Rotation flow_rot;
+      param_get(param_find("SENS_FLOW_ROT"), &flow_rot);
+
+      struct optical_flow_s f;
+      memset(&f, 0, sizeof(f));
+
+      f.timestamp = reader.getTimestamp() / 1000;
+      f.integration_timespan = reader.getIntegrationTime();
+      auto flowIntegral = reader.getFlowIntegral();
+      f.pixel_flow_x_integral = flowIntegral.getX();
+      f.pixel_flow_y_integral = flowIntegral.getY();
+      auto gyroIntegral = reader.getGyroIntegral();
+      f.gyro_x_rate_integral = gyroIntegral.getX();
+      f.gyro_y_rate_integral = gyroIntegral.getY();
+      f.gyro_z_rate_integral = gyroIntegral.getZ();
+      f.quality = reader.getQuality();
+      f.time_since_last_sonar_update = 0;
+      f.ground_distance_m = NAN;;
+      f.sensor_id = 0;
+      f.gyro_temperature = 0;
+
+      /* rotate measurements according to parameter */
+      float zeroval = 0.0f;
+      rotate_3f(flow_rot, f.pixel_flow_x_integral, f.pixel_flow_y_integral, zeroval);
+      rotate_3f(flow_rot, f.gyro_x_rate_integral, f.gyro_y_rate_integral, f.gyro_z_rate_integral);
+
+      publish_orb(f);
   }
 };
 
@@ -194,11 +221,11 @@ struct Gyro_ToRTPS: ORB_ToRTPS<redrider::Gyro, sensor_gyro_s> {
   void on_orb(sensor_gyro_s& gyro) {
     capnp::MallocMessageBuilder mb;
     auto p_gyro = mb.getRoot<redrider::Gyro>();
-    p_gyro.setTimestamp(gyro.timestamp);
+    p_gyro.setTimestamp(gyro.timestamp * 1000);
     p_gyro.getIntegral().setX(gyro.x_integral);
     p_gyro.getIntegral().setY(gyro.y_integral);
     p_gyro.getIntegral().setZ(gyro.x_integral);
-    p_gyro.setIntegralDt(gyro.integral_dt);
+    p_gyro.setIntegrationTime(gyro.integral_dt);
     publisher->publish(mb);
   }
 };
