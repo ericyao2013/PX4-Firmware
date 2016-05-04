@@ -52,6 +52,10 @@
 #include <lib/conversion/rotation.h>
 #include <uORB/topics/input_rc.h>
 #include <drivers/drv_rc_input.h>
+#include <uORB/topics/vehicle_command.h>
+#include <uORB/topics/offboard_control_mode.h>
+#include <uORB/topics/position_setpoint_triplet.h>
+#include <uORB/topics/vehicle_control_mode.h>
 #include <redrider.capnp.h>
 
 #include <commkit/node.h>
@@ -188,8 +192,7 @@ struct OpticalFlow_FromRTPS: ORB_FromRTPS<redrider::OpticalFlow, optical_flow_s>
       enum Rotation flow_rot;
       param_get(param_find("SENS_FLOW_ROT"), &flow_rot);
 
-      struct optical_flow_s f;
-      memset(&f, 0, sizeof(f));
+      struct optical_flow_s f = {};
 
       f.timestamp = reader.getTimestamp() / 1000;
       f.integration_timespan = reader.getIntegrationTime();
@@ -350,7 +353,88 @@ struct VehicleStatus_ToRTPS: ORB_ToRTPS<redrider::VehicleStatus, vehicle_status_
   }
 };
 
+struct AutopilotCommand_FromRTPS: ORB_FromRTPS<redrider::AutopilotCommand, vehicle_command_s> {
+  AutopilotCommand_FromRTPS(commkit::Node& node): ORB_FromRTPS(node, "AutopilotCommand", true, ORB_ID(vehicle_command)) {}
+  
+  void on_rtps(redrider::AutopilotCommand::Reader reader) {
+      struct vehicle_command_s cmd = {};
+      cmd.target_system = 1;
+      
+      switch (reader.which()) {
+        case redrider::AutopilotCommand::OFFBOARD_CONTROL: {
+          auto r = reader.getOffboardControl();
+          cmd.command = vehicle_command_s::VEHICLE_CMD_NAV_GUIDED_ENABLE;
+          cmd.param1 = r.getEnabled() ? 0.0 : 1.0;
+          break;
+        }
+        
+        default:
+          return;
+      }
+      
+      publish_orb(cmd);
+  }
+};
 
+struct AccelerationSetpoint_FromRTPS: ORB_FromRTPS<redrider::AccelerationSetpoint, offboard_control_mode_s> {
+  orb_advert_t _pos_sp_triplet_pub;
+  int _control_mode_sub;
+  vehicle_control_mode_s _control_mode;
+  
+  AccelerationSetpoint_FromRTPS(commkit::Node& node): ORB_FromRTPS(node, "AccelerationSetpoint", false, ORB_ID(offboard_control_mode)),
+    _pos_sp_triplet_pub(nullptr),
+    _control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
+    _control_mode()
+    {}
+      
+  void on_rtps(redrider::AccelerationSetpoint::Reader reader) {
+      struct offboard_control_mode_s offboard_control_mode = {};
+      
+      float yaw_rate = reader.getYawRate();
+      
+      offboard_control_mode.ignore_position = true;
+      offboard_control_mode.ignore_velocity = true;
+      offboard_control_mode.ignore_thrust = true;
+      offboard_control_mode.ignore_acceleration_force = false;
+      
+      /* yaw ignore flag maps to ignore_attitude */
+      offboard_control_mode.ignore_attitude = true;
+      /* yawrate ignore flag maps to ignore_bodyrate */
+      offboard_control_mode.ignore_bodyrate = !PX4_ISFINITE(yaw_rate);
+      offboard_control_mode.timestamp = hrt_absolute_time();
+      publish_orb(offboard_control_mode);
+      
+      bool updated;
+      orb_check(_control_mode_sub, &updated);
+
+      if (updated) {
+        orb_copy(ORB_ID(vehicle_control_mode), _control_mode_sub, &_control_mode);
+      }
+
+      if (_control_mode.flag_control_offboard_enabled) {
+        /* It's not a pure force setpoint: publish to setpoint triplet topic */
+        struct position_setpoint_triplet_s pos_sp_triplet = {};
+        pos_sp_triplet.previous.valid = false;
+        pos_sp_triplet.next.valid = false;
+        pos_sp_triplet.current.valid = true;
+        
+        pos_sp_triplet.current.acceleration_valid = true;
+        pos_sp_triplet.current.a_x = reader.getAcceleration().getX();
+        pos_sp_triplet.current.a_y = reader.getAcceleration().getY();
+        pos_sp_triplet.current.a_z = reader.getAcceleration().getZ();
+        pos_sp_triplet.current.acceleration_is_force = false;
+          
+        pos_sp_triplet.current.yawspeed_valid = PX4_ISFINITE(yaw_rate);
+        pos_sp_triplet.current.yawspeed = yaw_rate;
+        
+        if (_pos_sp_triplet_pub == nullptr) {
+          _pos_sp_triplet_pub = orb_advertise(ORB_ID(position_setpoint_triplet), &pos_sp_triplet);
+        } else {
+          orb_publish(ORB_ID(position_setpoint_triplet), _pos_sp_triplet_pub, &pos_sp_triplet);
+        }
+      }
+    }
+};
 
 static int thread_main() {
   commkit::Node node;
@@ -369,6 +453,8 @@ static int thread_main() {
   std::unique_ptr<ORB_FromRTPS_Base> from_rtps[] = {
     std::unique_ptr<ORB_FromRTPS_Base>(new OpticalFlow_FromRTPS(node)),
     std::unique_ptr<ORB_FromRTPS_Base>(new RcChannels_FromRTPS(node)),
+    std::unique_ptr<ORB_FromRTPS_Base>(new AutopilotCommand_FromRTPS(node)),
+    std::unique_ptr<ORB_FromRTPS_Base>(new AccelerationSetpoint_FromRTPS(node)),
   };
   
   const size_t to_rtps_count = sizeof(to_rtps) / sizeof(to_rtps[0]);
