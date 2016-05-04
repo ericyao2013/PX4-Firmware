@@ -706,7 +706,7 @@ function(px4_add_common_flags)
 		set(added_exe_linker_flags
 			-Wl,--warn-common
 			-Wl,--gc-sections
-			#,--print-gc-sections 
+			#,--print-gc-sections
 			)
 	endif()
 
@@ -827,23 +827,22 @@ endfunction()
 #	Generates a source file with all parameters.
 #
 #	Usage:
-#		px4_generate_parameters_source(OUT <list-source-files> XML <param-xml-file> [SCOPE <cmake file for scoping>])
+#		px4_generate_parameters_source(OUT <list-source-files> XML <param-xml-file>)
 #
 #	Input:
-#		XML   : the parameters.xml file
-#		SCOPE : the cmake file used to limit scope of the paramaters
-#		DEPS  : target dependencies
+#		XML : the parameters.xml file
+#		DEPS : target dependencies
 #
 #	Output:
 #		OUT	: the generated source files
 #
 #	Example:
-#		px4_generate_parameters_source(OUT param_files XML parameters.xml SCOPE ${OS}_${BOARD}_${LABEL}.cmake )
+#		px4_generate_parameters_source(OUT param_files XML parameters.xml)
 #
 function(px4_generate_parameters_source)
 	px4_parse_function_args(
 		NAME px4_generate_parameters_source
-		ONE_VALUE OUT XML SCOPE DEPS
+		ONE_VALUE OUT XML DEPS
 		REQUIRED OUT XML
 		ARGN ${ARGN})
 	set(generated_files
@@ -852,8 +851,8 @@ function(px4_generate_parameters_source)
 	set_source_files_properties(${generated_files}
 		PROPERTIES GENERATED TRUE)
 	add_custom_command(OUTPUT ${generated_files}
-		COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/Tools/px_generate_params.py ${XML} ${SCOPE}
-		DEPENDS ${XML} ${DEPS} ${CMAKE_SOURCE_DIR}/cmake/configs/${OS}_${BOARD}_${LABEL}.cmake
+		COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/Tools/px_generate_params.py ${XML}
+		DEPENDS ${XML} ${DEPS}
 		)
 	set(${OUT} ${generated_files} PARENT_SCOPE)
 endfunction()
