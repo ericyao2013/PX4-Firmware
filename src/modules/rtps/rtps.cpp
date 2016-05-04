@@ -230,6 +230,128 @@ struct Gyro_ToRTPS: ORB_ToRTPS<redrider::Gyro, sensor_gyro_s> {
   }
 };
 
+struct CurrentAttitude_ToRTPS: ORB_ToRTPS<redrider::CurrentAttitude, vehicle_attitude_s> {
+  CurrentAttitude_ToRTPS(commkit::Node& node): ORB_ToRTPS(node, "CurrentAttitude", false, ORB_ID(vehicle_attitude)) {}
+  
+  void on_orb(vehicle_attitude_s& att) {
+    capnp::MallocMessageBuilder mb;
+    auto p = mb.getRoot<redrider::CurrentAttitude>();
+    p.setTimestamp(att.timestamp * 1000);
+    p.setRoll(att.roll);
+    p.setPitch(att.pitch);
+    p.setYaw(att.yaw);
+    p.setRollSpeed(att.rollspeed);
+    p.setPitchSpeed(att.pitchspeed);
+    p.setYawSpeed(att.yawspeed);
+    publisher->publish(mb);
+  }
+};
+
+struct CurrentLocalPosition_ToRTPS: ORB_ToRTPS<redrider::CurrentLocalPosition, vehicle_local_position_s> {
+  CurrentLocalPosition_ToRTPS(commkit::Node& node): ORB_ToRTPS(node, "CurrentLocalPosition", false, ORB_ID(vehicle_local_position)) {}
+  
+  void on_orb(vehicle_local_position_s& pos) {
+    capnp::MallocMessageBuilder mb;
+    auto p = mb.getRoot<redrider::CurrentLocalPosition>();
+    p.setTimestamp(pos.timestamp * 1000);
+    auto position = p.getPosition();
+    position.setX(pos.x);
+    position.setY(pos.y);
+    position.setZ(pos.z);
+    auto velocity = p.getVelocity();
+    velocity.setX(pos.vx);
+    velocity.setY(pos.vy);
+    velocity.setZ(pos.vz);
+    publisher->publish(mb);
+  }
+};
+
+struct VehicleStatus_ToRTPS: ORB_ToRTPS<redrider::VehicleStatus, vehicle_status_s> {
+  VehicleStatus_ToRTPS(commkit::Node& node): ORB_ToRTPS(node, "VehicleStatus", false, ORB_ID(vehicle_status)) {}
+
+  void on_orb(vehicle_status_s& status) {
+    capnp::MallocMessageBuilder mb;
+    auto p = mb.getRoot<redrider::VehicleStatus>();
+    
+    p.setArmed(status.arming_state == vehicle_status_s::ARMING_STATE_ARMED
+           || status.arming_state == vehicle_status_s::ARMING_STATE_ARMED_ERROR);
+           
+    switch (status.nav_state) {
+      case vehicle_status_s::NAVIGATION_STATE_MANUAL:
+        p.setMode(redrider::VehicleStatus::PX4Mode::MANUAL);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_ACRO:
+        p.setMode(redrider::VehicleStatus::PX4Mode::ACRO);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_RATTITUDE:
+        p.setMode(redrider::VehicleStatus::PX4Mode::RATTITUDE);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_STAB:
+        p.setMode(redrider::VehicleStatus::PX4Mode::STAB);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_ALTCTL:
+        p.setMode(redrider::VehicleStatus::PX4Mode::ALTCTL);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_POSCTL:
+        p.setMode(redrider::VehicleStatus::PX4Mode::POSCTL);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_AUTO_TAKEOFF:
+        p.setMode(redrider::VehicleStatus::PX4Mode::AUTO_TAKEOFF);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_AUTO_MISSION:
+        p.setMode(redrider::VehicleStatus::PX4Mode::AUTO_MISSION);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_AUTO_LOITER:
+        p.setMode(redrider::VehicleStatus::PX4Mode::AUTO_LOITER);
+        break;
+        
+      case vehicle_status_s::NAVIGATION_STATE_AUTO_FOLLOW_TARGET:
+        p.setMode(redrider::VehicleStatus::PX4Mode::AUTO_FOLLOW_TARGET);
+        break;
+        
+      case vehicle_status_s::NAVIGATION_STATE_AUTO_RTL: /* fallthrough */
+      case vehicle_status_s::NAVIGATION_STATE_AUTO_RCRECOVER:
+        p.setMode(redrider::VehicleStatus::PX4Mode::AUTO_RTL);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_AUTO_LAND:
+      case vehicle_status_s::NAVIGATION_STATE_AUTO_LANDENGFAIL:
+      case vehicle_status_s::NAVIGATION_STATE_AUTO_LANDGPSFAIL: /* fallthrough */
+      case vehicle_status_s::NAVIGATION_STATE_DESCEND:
+        p.setMode(redrider::VehicleStatus::PX4Mode::AUTO_LAND);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_AUTO_RTGS:
+        p.setMode(redrider::VehicleStatus::PX4Mode::AUTO_RTGS);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_TERMINATION:
+        p.setMode(redrider::VehicleStatus::PX4Mode::TERMINATION);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_OFFBOARD:
+        p.setMode(redrider::VehicleStatus::PX4Mode::OFFBOARD);
+        break;
+
+      case vehicle_status_s::NAVIGATION_STATE_MAX:
+        /* this is an unused case, ignore */
+        break;
+    }
+        
+    publisher->publish(mb);
+  }
+};
+
+
+
 static int thread_main() {
   commkit::Node node;
   if (!node.init("px4")) {
@@ -239,6 +361,9 @@ static int thread_main() {
   
   std::unique_ptr<ORB_ToRTPS_Base> to_rtps[] = {
     std::unique_ptr<ORB_ToRTPS_Base>(new Gyro_ToRTPS(node)),
+    std::unique_ptr<ORB_ToRTPS_Base>(new CurrentAttitude_ToRTPS(node)),
+    std::unique_ptr<ORB_ToRTPS_Base>(new CurrentLocalPosition_ToRTPS(node)),
+    std::unique_ptr<ORB_ToRTPS_Base>(new VehicleStatus_ToRTPS(node)),
   };
   
   std::unique_ptr<ORB_FromRTPS_Base> from_rtps[] = {
@@ -254,7 +379,7 @@ static int thread_main() {
   }
   
   while (keep_running) {
-    px4_poll(fds, 1, 1000);
+    px4_poll(fds, to_rtps_count, 1000);
     for (size_t i = 0; i<to_rtps_count; i++) {
       if (fds[i].revents & POLLIN) {
         to_rtps[i]->poll_matched();
