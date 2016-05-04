@@ -91,6 +91,8 @@ struct ORB_ToRTPS: ORB_ToRTPS_Base {
         warnx("Error initializing publisher for %s\n", rtps_topic);
         return;
     }
+    publisher->onSubscriberConnected.connect(&ORB_ToRTPS::on_subscriber_connected, this);
+    publisher->onSubscriberDisconnected.connect(&ORB_ToRTPS::on_subscriber_disconnected, this);
     
     orb_id = orb;
     orb_fd = orb_subscribe(orb);
@@ -103,6 +105,12 @@ struct ORB_ToRTPS: ORB_ToRTPS_Base {
   }
   
   virtual void on_orb(orb_type&) {}
+  virtual void on_subscriber_connected(commkit::PublisherPtr pub) {
+    PX4_INFO("%s subscriber connected", pub->name().c_str());
+  }
+  virtual void on_subscriber_disconnected(commkit::PublisherPtr pub) {
+    PX4_INFO("%s subscriber disconnected", pub->name().c_str());
+  }
 };
 
 struct ORB_FromRTPS_Base {
@@ -127,6 +135,8 @@ struct ORB_FromRTPS: ORB_FromRTPS_Base {
         return;
     }
     subscriber->onMessage.connect(&ORB_FromRTPS::rtps_recv, this);
+    subscriber->onPublisherConnected.connect(&ORB_FromRTPS::on_publisher_connected, this);
+    subscriber->onPublisherDisconnected.connect(&ORB_FromRTPS::on_publisher_disconnected, this);
     if (!subscriber->init(sub_opts)) {
         warnx("Error initializing subscriber for %s\n", rtps_topic);
         return;
@@ -144,6 +154,12 @@ struct ORB_FromRTPS: ORB_FromRTPS_Base {
       auto capn = payload.toReader<CapnType>();
       on_rtps(capn);
     }
+  }
+  virtual void on_publisher_connected(commkit::SubscriberPtr sub) {
+    PX4_INFO("%s publisher connected", sub->name().c_str());
+  }
+  virtual void on_publisher_disconnected(commkit::SubscriberPtr sub) {
+    PX4_INFO("%s publisher disconnected", sub->name().c_str());
   }
   
   void publish_orb(orb_type& data) {
