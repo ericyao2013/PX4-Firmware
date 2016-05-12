@@ -151,7 +151,8 @@ struct ORB_FromRTPS: ORB_FromRTPS_Base {
   void rtps_recv(commkit::SubscriberPtr sub) {
     commkit::Payload payload;
     while (sub->take(&payload)) {
-      auto capn = payload.toReader<CapnType>();
+      auto msg = payload.toReader();
+      auto capn = msg.getRoot<CapnType>();
       on_rtps(capn);
     }
   }
