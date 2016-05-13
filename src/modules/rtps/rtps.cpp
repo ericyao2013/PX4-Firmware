@@ -381,7 +381,7 @@ struct AutopilotCommand_FromRTPS: ORB_FromRTPS<redrider::AutopilotCommand, vehic
         case redrider::AutopilotCommand::OFFBOARD_CONTROL: {
           auto r = reader.getOffboardControl();
           cmd.command = vehicle_command_s::VEHICLE_CMD_NAV_GUIDED_ENABLE;
-          cmd.param1 = r.getEnabled() ? 0.0 : 1.0;
+          cmd.param1 = r.getEnabled() ? 1.0 : 0.0;
           break;
         }
         
