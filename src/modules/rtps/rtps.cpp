@@ -212,7 +212,7 @@ struct OpticalFlow_FromRTPS: ORB_FromRTPS<redrider::OpticalFlow, optical_flow_s>
       struct optical_flow_s f = {};
 
       f.timestamp = reader.getTimestamp() / 1000;
-      f.integration_timespan = reader.getIntegrationTime();
+      f.integration_timespan = reader.getIntegrationTime() / 1000;
       auto flowIntegral = reader.getFlowIntegral();
       f.pixel_flow_x_integral = flowIntegral.getX();
       f.pixel_flow_y_integral = flowIntegral.getY();
